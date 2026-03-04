@@ -1,6 +1,8 @@
 const { pool, poolConnect, sql } = require("../config/database");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const path = require("path");
+const fs = require("fs");
 
 const login = async (req, res) => {
   try {
@@ -42,6 +44,7 @@ const login = async (req, res) => {
         id: user.id,
         nombre: user.nombre,
         usuario: user.usuario,
+        foto_perfil: user.foto_perfil || null,
       },
     });
   } catch (err) {
@@ -169,4 +172,81 @@ const cambiarPassword = async (req, res) => {
   }
 };
 
-module.exports = { login, crearUsuario, getUsuarios, updateUsuario, cambiarPassword };
+const subirFotoPerfil = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Buscar foto anterior
+    const anteriorRes = await pool
+      .request()
+      .input("id", sql.Int, id)
+      .query("SELECT foto_perfil FROM usuarios WHERE id = @id");
+
+    const fotoAnterior = anteriorRes.recordset[0]?.foto_perfil;
+
+    // Eliminar foto anterior del disco si existe
+    if (fotoAnterior) {
+      const rutaAnterior = path.join(
+        __dirname,
+        "../../uploads/fotos",
+        fotoAnterior,
+      );
+      if (fs.existsSync(rutaAnterior)) fs.unlinkSync(rutaAnterior);
+    }
+
+    const nombreArchivo = req.file.filename;
+
+    await pool
+      .request()
+      .input("id", sql.Int, id)
+      .input("foto", sql.VarChar(255), nombreArchivo)
+      .query("UPDATE usuarios SET foto_perfil = @foto WHERE id = @id");
+
+    res.json({ foto_perfil: nombreArchivo });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Error al subir la foto" });
+  }
+};
+
+const eliminarFotoPerfil = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const anteriorRes = await pool
+      .request()
+      .input("id", sql.Int, id)
+      .query("SELECT foto_perfil FROM usuarios WHERE id = @id");
+
+    const fotoAnterior = anteriorRes.recordset[0]?.foto_perfil;
+
+    if (fotoAnterior) {
+      const rutaAnterior = path.join(
+        __dirname,
+        "../../uploads/fotos",
+        fotoAnterior,
+      );
+      if (fs.existsSync(rutaAnterior)) fs.unlinkSync(rutaAnterior);
+    }
+
+    await pool
+      .request()
+      .input("id", sql.Int, id)
+      .query("UPDATE usuarios SET foto_perfil = NULL WHERE id = @id");
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Error al eliminar la foto" });
+  }
+};
+
+module.exports = {
+  login,
+  crearUsuario,
+  getUsuarios,
+  updateUsuario,
+  cambiarPassword,
+  subirFotoPerfil,
+  eliminarFotoPerfil,
+};

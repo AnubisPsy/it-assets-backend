@@ -11,7 +11,7 @@ const {
   subirDocumentoFirmado,
   verificarDocumento,
 } = require("../controllers/asignaciones.controller");
-const upload = require("../config/multer");
+const { upload } = require("../config/multer");
 
 router.get("/buscar/resultados", buscar);
 router.get("/historial/equipo/:equipo_id", getHistorialByEquipo);

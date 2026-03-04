@@ -28,6 +28,10 @@ app.use("/api/personas", personasRoutes);
 app.use("/api/equipos", equiposRoutes);
 app.use("/api/asignaciones", asignacionesRoutes);
 app.use("/api/pdf", pdfRoutes);
+app.use(
+  "/uploads/fotos",
+  express.static(path.join(__dirname, "../uploads/fotos")),
+);
 
 app.get("/", (req, res) => {
   res.json({ mensaje: "IT Assets API funcionando" });

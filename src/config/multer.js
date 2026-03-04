@@ -34,4 +34,22 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 },
 });
 
-module.exports = upload;
+const storageFotos = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = path.join(__dirname, "../../uploads/fotos");
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    cb(null, `usuario_${req.params.id}${ext}`);
+  },
+});
+
+const uploadFoto = multer({
+  storage: storageFotos,
+  fileFilter,
+  limits: { fileSize: 5 * 1024 * 1024 },
+});
+
+module.exports = { upload, uploadFoto };
