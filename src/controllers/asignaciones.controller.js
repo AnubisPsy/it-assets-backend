@@ -13,10 +13,12 @@ const getAsignaciones = async (req, res) => {
                 e.modelo,
                 e.serie,
                 e.procesador,
-                e.ram
+                e.ram,
+                u.usuario AS asignado_por
             FROM asignaciones a
             JOIN personas p ON a.persona_id = p.id
             JOIN equipos e ON a.equipo_id = e.id
+            LEFT JOIN usuarios u ON a.usuario_id = u.id
             ORDER BY a.fecha_registro DESC
         `);
     res.json(result.recordset);
@@ -103,6 +105,7 @@ const createAsignacion = async (req, res) => {
   try {
     await poolConnect;
     const { equipo_id, persona_id, fecha_asignacion, notas } = req.body;
+    const usuario_id = req.usuario.id; // viene del token JWT
 
     if (!equipo_id || !persona_id || !fecha_asignacion) {
       return res
@@ -110,7 +113,6 @@ const createAsignacion = async (req, res) => {
         .json({ error: "Equipo, persona y fecha son requeridos" });
     }
 
-    // Verificar que el equipo esté disponible
     const equipoCheck = await pool
       .request()
       .input("equipo_id", sql.Int, equipo_id)
@@ -126,16 +128,16 @@ const createAsignacion = async (req, res) => {
         .json({ error: "El equipo no está disponible para asignar" });
     }
 
-    // Crear la asignación y actualizar el estado del equipo
     const result = await pool
       .request()
       .input("equipo_id", sql.Int, equipo_id)
       .input("persona_id", sql.Int, persona_id)
       .input("fecha_asignacion", sql.Date, fecha_asignacion)
-      .input("notas", sql.VarChar(500), notas || null).query(`
-                INSERT INTO asignaciones (equipo_id, persona_id, fecha_asignacion, notas)
+      .input("notas", sql.VarChar(500), notas || null)
+      .input("usuario_id", sql.Int, usuario_id).query(`
+                INSERT INTO asignaciones (equipo_id, persona_id, fecha_asignacion, notas, usuario_id)
                 OUTPUT INSERTED.*
-                VALUES (@equipo_id, @persona_id, @fecha_asignacion, @notas)
+                VALUES (@equipo_id, @persona_id, @fecha_asignacion, @notas, @usuario_id)
             `);
 
     await pool
@@ -200,36 +202,43 @@ const registrarDevolucion = async (req, res) => {
 const buscar = async (req, res) => {
   try {
     await poolConnect;
-    //console.log("Query params:", req.query);
-    const { persona, serie, fecha_desde, fecha_hasta, activa } = req.query;
+    const { persona, departamento, equipo, fecha_desde, fecha_hasta, usuario } =
+      req.query;
 
     let query = `
-            SELECT 
-                a.*,
-                p.nombre AS persona_nombre,
-                p.numero_identidad,
-                p.departamento,
-                e.marca,
-                e.modelo,
-                e.serie,
-                e.procesador,
-                e.ram
-            FROM asignaciones a
-            JOIN personas p ON a.persona_id = p.id
-            JOIN equipos e ON a.equipo_id = e.id
-            WHERE 1=1
-        `;
+      SELECT 
+        a.*,
+        p.nombre AS persona_nombre,
+        p.numero_identidad,
+        p.departamento,
+        e.marca,
+        e.modelo,
+        e.serie,
+        e.procesador,
+        e.ram,
+        u.usuario AS asignado_por
+      FROM asignaciones a
+      JOIN personas p ON a.persona_id = p.id
+      JOIN equipos e ON a.equipo_id = e.id
+      LEFT JOIN usuarios u ON a.usuario_id = u.id
+      WHERE 1=1
+    `;
 
     const request = pool.request();
 
     if (persona) {
-      query += ` AND (p.nombre LIKE @persona OR p.numero_identidad LIKE @persona)`;
+      query += ` AND p.nombre COLLATE Latin1_General_CI_AI LIKE @persona`;
       request.input("persona", sql.VarChar(150), `%${persona}%`);
     }
 
-    if (serie) {
-      query += ` AND e.serie LIKE @serie`;
-      request.input("serie", sql.VarChar(100), `%${serie}%`);
+    if (departamento) {
+      query += ` AND p.departamento COLLATE Latin1_General_CI_AI LIKE @departamento`;
+      request.input("departamento", sql.VarChar(150), `%${departamento}%`);
+    }
+
+    if (equipo) {
+      query += ` AND (e.serie COLLATE Latin1_General_CI_AI LIKE @equipo OR e.marca COLLATE Latin1_General_CI_AI LIKE @equipo OR e.modelo COLLATE Latin1_General_CI_AI LIKE @equipo)`;
+      request.input("equipo", sql.VarChar(150), `%${equipo}%`);
     }
 
     if (fecha_desde) {
@@ -242,9 +251,9 @@ const buscar = async (req, res) => {
       request.input("fecha_hasta", sql.Date, fecha_hasta);
     }
 
-    if (activa !== undefined) {
-      query += ` AND a.activa = @activa`;
-      request.input("activa", sql.Bit, activa === "true" ? 1 : 0);
+    if (usuario) {
+      query += ` AND u.usuario COLLATE Latin1_General_CI_AI LIKE @usuario`;
+      request.input("usuario", sql.VarChar(150), `%${usuario}%`);
     }
 
     query += ` ORDER BY a.fecha_asignacion DESC`;
