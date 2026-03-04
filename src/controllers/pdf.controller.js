@@ -49,9 +49,11 @@ const generarConstancia = async (req, res) => {
     const doc = new PDFDocument({ margin: 0, size: "LETTER" });
 
     res.setHeader("Content-Type", "application/pdf");
+    const nombreLimpio = datos.persona_nombre.replace(/\s+/g, "_");
+    const fechaLimpia = `${dia}-${mes}-${anio}`;
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename=constancia_${id}.pdf`,
+      `attachment; filename=constancia_${nombreLimpio}_${fechaLimpia}.pdf`,
     );
     doc.pipe(res);
 

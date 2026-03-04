@@ -256,6 +256,66 @@ const buscar = async (req, res) => {
   }
 };
 
+const subirDocumentoFirmado = async (req, res) => {
+  try {
+    await poolConnect;
+    const { id } = req.params;
+
+    if (!req.file) {
+      return res.status(400).json({ error: "No se recibió ningún archivo" });
+    }
+
+    const rutaArchivo = `uploads/documentos/${req.file.filename}`;
+
+    const result = await pool
+      .request()
+      .input("id", sql.Int, id)
+      .input("documento_firmado", sql.VarChar(300), rutaArchivo).query(`
+                UPDATE asignaciones
+                SET documento_firmado = @documento_firmado
+                OUTPUT INSERTED.*
+                WHERE id = @id
+            `);
+
+    if (result.recordset.length === 0) {
+      return res.status(404).json({ error: "Asignación no encontrada" });
+    }
+
+    res.json({ mensaje: "Documento subido correctamente", ruta: rutaArchivo });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+const fs = require("fs");
+const path = require("path");
+
+const verificarDocumento = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await poolConnect;
+
+    const result = await pool
+      .request()
+      .input("id", sql.Int, id)
+      .query("SELECT documento_firmado FROM asignaciones WHERE id = @id");
+
+    if (result.recordset.length === 0) {
+      return res.status(404).json({ existe: false });
+    }
+
+    const ruta = result.recordset[0].documento_firmado;
+    if (!ruta) return res.json({ existe: false });
+
+    const rutaCompleta = path.join(__dirname, "../../", ruta);
+    const existe = fs.existsSync(rutaCompleta);
+
+    res.json({ existe, url: existe ? `http://localhost:3000/${ruta}` : null });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 module.exports = {
   getAsignaciones,
   getAsignacionById,
@@ -264,4 +324,6 @@ module.exports = {
   createAsignacion,
   registrarDevolucion,
   buscar,
+  subirDocumentoFirmado,
+  verificarDocumento,
 };
