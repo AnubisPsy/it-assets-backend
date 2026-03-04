@@ -1,4 +1,9 @@
+process.on("uncaughtException", (err) => {
+  console.error("Error no manejado:", err.message);
+});
+
 const PDFDocument = require("pdfkit");
+const path = require("path");
 const { pool, poolConnect, sql } = require("../config/database");
 
 const generarConstancia = async (req, res) => {
@@ -7,22 +12,22 @@ const generarConstancia = async (req, res) => {
     const { id } = req.params;
 
     const result = await pool.request().input("id", sql.Int, id).query(`
-                SELECT 
-                    a.*,
-                    p.nombre AS persona_nombre,
-                    p.numero_identidad,
-                    p.departamento,
-                    e.marca,
-                    e.modelo,
-                    e.serie,
-                    e.procesador,
-                    e.ram,
-                    e.descripcion AS equipo_descripcion
-                FROM asignaciones a
-                JOIN personas p ON a.persona_id = p.id
-                JOIN equipos e ON a.equipo_id = e.id
-                WHERE a.id = @id
-            `);
+        SELECT 
+            a.*,
+            p.nombre AS persona_nombre,
+            p.numero_identidad,
+            p.departamento,
+            e.marca,
+            e.modelo,
+            e.serie,
+            e.procesador,
+            e.ram,
+            e.descripcion AS equipo_descripcion
+        FROM asignaciones a
+        JOIN personas p ON a.persona_id = p.id
+        JOIN equipos e ON a.equipo_id = e.id
+        WHERE a.id = @id
+    `);
 
     if (result.recordset.length === 0) {
       return res.status(404).json({ error: "Asignación no encontrada" });
@@ -34,7 +39,14 @@ const generarConstancia = async (req, res) => {
     const mes = fecha.toLocaleString("es-HN", { month: "long" }).toUpperCase();
     const anio = fecha.getFullYear();
 
-    const doc = new PDFDocument({ margin: 60, size: "LETTER" });
+    await pool
+      .request()
+      .input("id", sql.Int, id)
+      .query(
+        `UPDATE asignaciones SET pdf_generado = 'generado' WHERE id = @id`,
+      );
+
+    const doc = new PDFDocument({ margin: 0, size: "LETTER" });
 
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
@@ -43,55 +55,71 @@ const generarConstancia = async (req, res) => {
     );
     doc.pipe(res);
 
-    // Encabezado
-    doc
-      .fontSize(13)
-      .font("Helvetica-Bold")
-      .text("FERRETERÍA MADEYSO", { align: "center" });
+    doc.on("error", (err) => console.error("Error en PDF:", err.message));
+    res.on("error", (err) => console.error("Error en respuesta:", err.message));
+
+    const margen = 60;
+    const anchoUtil = 492; // 612 - 60*2
+    let y = 40;
+
+    // ── Logo
+    const logoPath = path.join(__dirname, "../assets/MADEYSO_LOGO.png");
+    doc.image(logoPath, margen, y, { width: 150 });
+
+    // ── Fecha (derecha, mismo nivel que logo)
     doc
       .fontSize(10)
       .font("Helvetica")
-      .text("Hazlo bien, Hazlo mejor", { align: "center" });
-    doc.moveDown(0.5);
+      .text(
+        `La Ceiba, Atlántida   Fecha ${dia} de ${mes} de ${anio}`,
+        margen,
+        y + 20,
+        { width: anchoUtil, align: "right" },
+      );
 
-    // Fecha
-    doc
-      .fontSize(10)
-      .text(`La Ceiba, Atlántida   Fecha ${dia} de ${mes} de ${anio}`, {
-        align: "right",
-      });
-    doc.moveDown(1.5);
+    y = 120;
 
-    // Título
+    // ── Título
     doc
       .fontSize(13)
       .font("Helvetica-Bold")
-      .text("CONSTANCIA DE ENTREGA DE EQUIPO", { align: "center" });
-    doc.moveDown(1.5);
+      .text("CONSTANCIA DE ENTREGA DE EQUIPO", margen, y, {
+        width: anchoUtil,
+        align: "center",
+      });
 
-    // Datos del colaborador
-    doc.fontSize(10).font("Helvetica");
+    y = 160;
+
+    // ── Datos del colaborador
     doc
-      .text(`Yo, `, { continued: true })
+      .fontSize(10)
+      .font("Helvetica")
+      .text("Yo, ", margen, y, { continued: true })
       .font("Helvetica-Bold")
       .text(datos.persona_nombre, { continued: true })
       .font("Helvetica")
-      .text(`   con número de Identidad `, { continued: true })
+      .text(" con número de Identidad  ", { continued: true })
       .font("Helvetica-Bold")
       .text(datos.numero_identidad);
-    doc.moveDown(1);
+
+    y = 195;
+
     doc
+      .fontSize(10)
       .font("Helvetica")
       .text(
         "Por este medio hago constar que en esta fecha he recibido el siguiente equipo:",
+        margen,
+        y,
+        { width: anchoUtil },
       );
-    doc.moveDown(1);
 
-    // Tabla de equipo
-    const tableTop = doc.y;
-    const col1 = 60;
-    const col2 = 220;
-    const tableWidth = 490;
+    y = 225;
+
+    // ── Tabla
+    const col1 = margen;
+    const col2 = margen + 160;
+    const tableWidth = anchoUtil;
     const rowHeight = 28;
 
     const filas = [
@@ -106,22 +134,22 @@ const generarConstancia = async (req, res) => {
     ];
 
     filas.forEach((fila, i) => {
-      const y = tableTop + i * rowHeight;
-      doc.rect(col1, y, tableWidth, rowHeight).stroke();
-      doc.rect(col1, y, 150, rowHeight).stroke();
+      const fy = y + i * rowHeight;
+      doc.rect(col1, fy, tableWidth, rowHeight).stroke();
+      doc.rect(col1, fy, 160, rowHeight).stroke();
       doc
         .font("Helvetica-Bold")
         .fontSize(9)
-        .text(fila[0], col1 + 6, y + 9, { width: 138 });
+        .text(fila[0], col1 + 6, fy + 9, { width: 148 });
       doc
         .font("Helvetica")
         .fontSize(9)
-        .text(fila[1] || "—", col2 + 6, y + 9, { width: tableWidth - 156 });
+        .text(fila[1] || "—", col2 + 6, fy + 9, { width: tableWidth - 166 });
     });
 
-    // Fila de descripción extra
-    const notaY = tableTop + filas.length * rowHeight;
-    const notaAltura = 50;
+    // ── Fila de nota
+    const notaY = y + filas.length * rowHeight;
+    const notaAltura = 55;
     doc.rect(col1, notaY, tableWidth, notaAltura).stroke();
     doc
       .font("Helvetica")
@@ -136,24 +164,28 @@ const generarConstancia = async (req, res) => {
         { width: tableWidth - 12 },
       );
 
-    doc.moveDown(8);
-
-    // Cuerpo del texto
+    // ── Cuerpo del texto
+    const cuerpoY = notaY + notaAltura + 35;
     doc
       .fontSize(10)
       .font("Helvetica")
       .text(
-        "Soy consciente que soy responsable del cuidado y resguardo del equipo detallado y que me es entregado para fines estrictamente laborales, por lo cual me comprometo a utilizarlo única y exclusivamente para realizar mis funciones diarias. De igual manera siendo que soy responsable de su guarda y custodia soy consciente que cualquier daño que el equipo sufra producto de mi negligencia o descuido será cargado el importe económico en que la empresa incurra por su reparación o reemplazo.",
-        { align: "justify", lineGap: 2 },
+        "Soy consciente que soy responsable del cuidado y resguardo del equipo detallado y que " +
+          "me es entregado para fines estrictamente laborales, por lo cual me comprometo a utilizarlo " +
+          "única y exclusivamente para realizar mis funciones diarias. De igual manera siendo que soy " +
+          "responsable de su guarda y custodia soy consciente que cualquier daño que el equipo sufra " +
+          "producto de mi negligencia o descuido será cargado el importe económico en que la empresa " +
+          "incurra por su reparación o reemplazo.",
+        margen,
+        cuerpoY,
+        { align: "justify", lineGap: 2, width: anchoUtil },
       );
 
-    doc.moveDown(4);
-
-    // Firmas
-    const firmaY = doc.y;
-    const firma1X = 60;
+    // ── Firmas
+    const firmaY = cuerpoY + 180;
+    const firma1X = margen;
     const firma2X = 340;
-    const firmaWidth = 180;
+    const firmaWidth = 175;
 
     doc
       .moveTo(firma1X, firmaY)
@@ -166,26 +198,22 @@ const generarConstancia = async (req, res) => {
 
     doc
       .fontSize(9)
-      .text("Firma del Colaborador que recibe el equipo", firma1X, firmaY + 5, {
+      .font("Helvetica")
+      .text("Firma del Colaborador que recibe el equipo", firma1X, firmaY + 6, {
         width: firmaWidth,
         align: "center",
       });
-    doc.text("Firma del Jefe Inmediato", firma2X, firmaY + 5, {
+    doc.text("Firma del Jefe Inmediato", firma2X, firmaY + 6, {
       width: firmaWidth,
       align: "center",
     });
 
     doc.end();
-
-    // Marcar pdf como generado
-    await pool
-      .request()
-      .input("id", sql.Int, id)
-      .query(
-        `UPDATE asignaciones SET pdf_generado = 'generado' WHERE id = @id`,
-      );
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("Error generando PDF:", err.message);
+    if (!res.headersSent) {
+      res.status(500).json({ error: err.message });
+    }
   }
 };
 
