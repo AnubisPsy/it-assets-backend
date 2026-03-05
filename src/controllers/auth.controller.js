@@ -90,7 +90,7 @@ const getUsuarios = async (req, res) => {
     const result = await pool
       .request()
       .query(
-        "SELECT id, nombre, usuario, activo, fecha_registro FROM usuarios ORDER BY nombre",
+        "SELECT id, nombre, usuario, activo, fecha_registro, foto_perfil FROM usuarios ORDER BY nombre",
       );
     res.json(result.recordset);
   } catch (err) {
