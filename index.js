@@ -9,6 +9,7 @@ const equiposRoutes = require("./src/routes/equipos.routes");
 const asignacionesRoutes = require("./src/routes/asignaciones.routes");
 const authMiddleware = require("./src/middlewares/auth.middleware");
 const pdfRoutes = require("./src/routes/pdf.routes");
+const tiposEquipoRoutes = require("./src/routes/tiposEquipos.routes");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -32,6 +33,7 @@ app.use(
   "/uploads/fotos",
   express.static(path.join(__dirname, "../uploads/fotos")),
 );
+app.use("/api/tipos-equipo", tiposEquipoRoutes);
 
 app.get("/", (req, res) => {
   res.json({ mensaje: "IT Assets API funcionando" });
