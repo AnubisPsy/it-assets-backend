@@ -37,7 +37,7 @@ const getEquipoById = async (req, res) => {
 const createEquipo = async (req, res) => {
   try {
     await poolConnect;
-    const { tipo_id, marca, modelo, serie, procesador, ram, descripcion } =
+    const { tipo_id, marca, modelo, serie, procesador, ram, descripcion, mac } =
       req.body;
 
     if (!tipo_id || !marca || !modelo || !serie) {
@@ -54,10 +54,11 @@ const createEquipo = async (req, res) => {
       .input("serie", sql.VarChar(100), serie)
       .input("procesador", sql.VarChar(100), procesador || null)
       .input("ram", sql.VarChar(50), ram || null)
-      .input("descripcion", sql.VarChar(300), descripcion || null).query(`
-        INSERT INTO equipos (tipo_id, marca, modelo, serie, procesador, ram, descripcion)
+      .input("descripcion", sql.VarChar(300), descripcion || null)
+      .input("mac", sql.VarChar(50), mac || null).query(`
+        INSERT INTO equipos (tipo_id, marca, modelo, serie, procesador, ram, descripcion, mac)
         OUTPUT INSERTED.*
-        VALUES (@tipo_id, @marca, @modelo, @serie, @procesador, @ram, @descripcion)
+        VALUES (@tipo_id, @marca, @modelo, @serie, @procesador, @ram, @descripcion, @mac)
       `);
 
     res.status(201).json(result.recordset[0]);
@@ -79,6 +80,7 @@ const updateEquipo = async (req, res) => {
       ram,
       descripcion,
       estado,
+      mac,
     } = req.body;
 
     const result = await pool
@@ -91,7 +93,8 @@ const updateEquipo = async (req, res) => {
       .input("procesador", sql.VarChar(100), procesador || null)
       .input("ram", sql.VarChar(50), ram || null)
       .input("descripcion", sql.VarChar(300), descripcion || null)
-      .input("estado", sql.VarChar(20), estado).query(`
+      .input("estado", sql.VarChar(20), estado)
+      .input("mac", sql.VarChar(50), mac || null).query(`
         UPDATE equipos
         SET tipo_id = @tipo_id,
             marca = @marca,
@@ -100,7 +103,8 @@ const updateEquipo = async (req, res) => {
             procesador = @procesador,
             ram = @ram,
             descripcion = @descripcion,
-            estado = @estado
+            estado = @estado,
+            mac = @mac
         OUTPUT INSERTED.*
         WHERE id = @id
       `);
