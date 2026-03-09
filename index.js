@@ -11,6 +11,13 @@ const authMiddleware = require("./src/middlewares/auth.middleware");
 const pdfRoutes = require("./src/routes/pdf.routes");
 const tiposEquipoRoutes = require("./src/routes/tiposEquipos.routes");
 
+
+//ARGEGADO POR JOSE FORTIN  
+
+const comprasRoutes = require("./src/routes/compras.routes");
+const estadoRoutes  = require("./src/routes/estado.routes");
+
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -44,6 +51,9 @@ app.use("/api/tipos-equipo", tiposEquipoRoutes);
 app.get("/", (req, res) => {
   res.json({ mensaje: "IT Assets API funcionando" });
 });
+
+app.use("/api/compras", comprasRoutes);
+app.use("/api/estados", estadoRoutes);
 
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en puerto ${PORT}`);
