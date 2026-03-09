@@ -62,13 +62,16 @@ app.get("/", (req, res) => {
 
 io.on("connection", (socket) => {
   console.log("Cliente conectado:", socket.id);
+
   verificarTodos().then((resultados) => {
     socket.emit("estado_servidores", resultados);
   });
-  socket.on("verificar_uno", async (id) => {
-    const resultado = await verificarUno(id);
-    if (resultado) socket.emit("estado_servidor", resultado);
+
+  socket.on("verificar_uno", async ({ tipo, id }) => {
+    const resultado = await verificarUno(tipo, id);
+    if (resultado) socket.emit("estado_servidor", { tipo, datos: resultado });
   });
+
   socket.on("disconnect", () => {
     console.log("Cliente desconectado:", socket.id);
   });
