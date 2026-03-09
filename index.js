@@ -13,17 +13,12 @@ const authMiddleware = require("./src/middlewares/auth.middleware");
 const pdfRoutes = require("./src/routes/pdf.routes");
 const tiposEquipoRoutes = require("./src/routes/tiposEquipos.routes");
 const servidoresRoutes = require("./src/routes/servidores.routes");
+const comprasRoutes = require("./src/routes/compras.routes");
+const estadoRoutes = require("./src/routes/estado.routes");
 const {
   verificarTodos,
   verificarUno,
 } = require("./src/controllers/servidores.controller");
-
-
-//ARGEGADO POR JOSE FORTIN  
-
-const comprasRoutes = require("./src/routes/compras.routes");
-const estadoRoutes  = require("./src/routes/estado.routes");
-
 
 const app = express();
 const server = http.createServer(app);
@@ -44,6 +39,7 @@ app.use(
 app.use(express.json());
 
 const path = require("path");
+
 app.use("/api/auth", authRoutes);
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.use(authMiddleware);
@@ -57,27 +53,22 @@ app.use(
 );
 app.use("/api/tipos-equipo", tiposEquipoRoutes);
 app.use("/api/servidores", servidoresRoutes);
+app.use("/api/compras", comprasRoutes);
+app.use("/api/estados", estadoRoutes);
 
 app.get("/", (req, res) => {
   res.json({ mensaje: "IT Assets API funcionando" });
 });
 
-app.use("/api/compras", comprasRoutes);
-app.use("/api/estados", estadoRoutes);
-
-app.listen(PORT, () => {
 io.on("connection", (socket) => {
   console.log("Cliente conectado:", socket.id);
-
   verificarTodos().then((resultados) => {
     socket.emit("estado_servidores", resultados);
   });
-
   socket.on("verificar_uno", async (id) => {
     const resultado = await verificarUno(id);
     if (resultado) socket.emit("estado_servidor", resultado);
   });
-
   socket.on("disconnect", () => {
     console.log("Cliente desconectado:", socket.id);
   });
