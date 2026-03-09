@@ -18,6 +18,13 @@ const {
   verificarUno,
 } = require("./src/controllers/servidores.controller");
 
+
+//ARGEGADO POR JOSE FORTIN  
+
+const comprasRoutes = require("./src/routes/compras.routes");
+const estadoRoutes  = require("./src/routes/estado.routes");
+
+
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -55,6 +62,10 @@ app.get("/", (req, res) => {
   res.json({ mensaje: "IT Assets API funcionando" });
 });
 
+app.use("/api/compras", comprasRoutes);
+app.use("/api/estados", estadoRoutes);
+
+app.listen(PORT, () => {
 io.on("connection", (socket) => {
   console.log("Cliente conectado:", socket.id);
 

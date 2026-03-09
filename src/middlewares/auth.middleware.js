@@ -12,7 +12,10 @@ module.exports = function authMiddleware(req, res, next) {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.usuario = decoded;
     next();
-  } catch {
-    res.status(403).json({ error: "Token inválido o expirado" });
+  } catch (err) {
+    if (err.name === "TokenExpiredError") {
+      return res.status(403).json({ error: "Token expirado, inicia sesión nuevamente" });
+    }
+    return res.status(403).json({ error: "Token inválido" });
   }
 };
