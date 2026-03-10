@@ -12,22 +12,23 @@ const generarConstancia = async (req, res) => {
     const { id } = req.params;
 
     const result = await pool.request().input("id", sql.Int, id).query(`
-        SELECT 
-            a.*,
-            p.nombre AS persona_nombre,
-            p.numero_identidad,
-            p.departamento,
-            e.marca,
-            e.modelo,
-            e.serie,
-            e.procesador,
-            e.ram,
-            e.descripcion AS equipo_descripcion
-        FROM asignaciones a
-        JOIN personas p ON a.persona_id = p.id
-        JOIN equipos e ON a.equipo_id = e.id
-        WHERE a.id = @id
-    `);
+      SELECT 
+          a.*,
+          p.nombre AS persona_nombre,
+          p.numero_identidad,
+          d.nombre AS departamento,
+          e.marca,
+          e.modelo,
+          e.serie,
+          e.procesador,
+          e.ram,
+          e.descripcion AS equipo_descripcion
+      FROM asignaciones a
+      JOIN personas p ON a.persona_id = p.id
+      JOIN departamentos d ON p.departamento_id = d.id
+      JOIN equipos e ON a.equipo_id = e.id
+      WHERE a.id = @id
+`);
 
     if (result.recordset.length === 0) {
       return res.status(404).json({ error: "Asignación no encontrada" });

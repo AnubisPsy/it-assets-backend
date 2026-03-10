@@ -4,9 +4,10 @@ const getEquipos = async (req, res) => {
   try {
     await poolConnect;
     const result = await pool.request().query(`
-      SELECT e.*, t.nombre AS tipo_nombre
+      SELECT e.*, t.nombre AS tipo_nombre, s.descripcion AS estado
       FROM equipos e
       LEFT JOIN tipos_equipo t ON e.tipo_id = t.id
+      LEFT JOIN estado s ON e.estado_id = s.id
       ORDER BY e.fecha_registro DESC
     `);
     res.json(result.recordset);
@@ -19,10 +20,13 @@ const getEquipoById = async (req, res) => {
   try {
     await poolConnect;
     const { id } = req.params;
-    const result = await pool
-      .request()
-      .input("id", sql.Int, id)
-      .query("SELECT * FROM equipos WHERE id = @id");
+    const result = await pool.request().input("id", sql.Int, id).query(`
+      SELECT e.*, t.nombre AS tipo_nombre, s.descripcion AS estado
+      FROM equipos e
+      LEFT JOIN tipos_equipo t ON e.tipo_id = t.id
+      LEFT JOIN estado s ON e.estado_id = s.id
+      WHERE e.id = @id
+    `);
 
     if (result.recordset.length === 0) {
       return res.status(404).json({ error: "Equipo no encontrado" });
@@ -56,9 +60,9 @@ const createEquipo = async (req, res) => {
       .input("ram", sql.VarChar(50), ram || null)
       .input("descripcion", sql.VarChar(300), descripcion || null)
       .input("mac", sql.VarChar(50), mac || null).query(`
-        INSERT INTO equipos (tipo_id, marca, modelo, serie, procesador, ram, descripcion, mac)
+        INSERT INTO equipos (tipo_id, marca, modelo, serie, procesador, ram, descripcion, mac, estado_id)
         OUTPUT INSERTED.*
-        VALUES (@tipo_id, @marca, @modelo, @serie, @procesador, @ram, @descripcion, @mac)
+        VALUES (@tipo_id, @marca, @modelo, @serie, @procesador, @ram, @descripcion, @mac, 1)
       `);
 
     res.status(201).json(result.recordset[0]);
@@ -79,7 +83,7 @@ const updateEquipo = async (req, res) => {
       procesador,
       ram,
       descripcion,
-      estado,
+      estado_id,
       mac,
     } = req.body;
 
@@ -93,7 +97,7 @@ const updateEquipo = async (req, res) => {
       .input("procesador", sql.VarChar(100), procesador || null)
       .input("ram", sql.VarChar(50), ram || null)
       .input("descripcion", sql.VarChar(300), descripcion || null)
-      .input("estado", sql.VarChar(20), estado)
+      .input("estado_id", sql.Int, estado_id)
       .input("mac", sql.VarChar(50), mac || null).query(`
         UPDATE equipos
         SET tipo_id = @tipo_id,
@@ -103,7 +107,7 @@ const updateEquipo = async (req, res) => {
             procesador = @procesador,
             ram = @ram,
             descripcion = @descripcion,
-            estado = @estado,
+            estado_id = @estado_id,
             mac = @mac
         OUTPUT INSERTED.*
         WHERE id = @id
@@ -119,4 +123,20 @@ const updateEquipo = async (req, res) => {
   }
 };
 
-module.exports = { getEquipos, getEquipoById, createEquipo, updateEquipo };
+const getEstados = async (req, res) => {
+  try {
+    await poolConnect;
+    const result = await pool.request().query("SELECT * FROM estado");
+    res.json(result.recordset);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+module.exports = {
+  getEquipos,
+  getEquipoById,
+  createEquipo,
+  updateEquipo,
+  getEstados,
+};

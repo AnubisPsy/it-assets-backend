@@ -4,23 +4,24 @@ const getAsignaciones = async (req, res) => {
   try {
     await poolConnect;
     const result = await pool.request().query(`
-            SELECT 
-                a.*,
-                p.nombre AS persona_nombre,
-                p.numero_identidad,
-                p.departamento,
-                e.marca,
-                e.modelo,
-                e.serie,
-                e.procesador,
-                e.ram,
-                u.usuario AS asignado_por
-            FROM asignaciones a
-            JOIN personas p ON a.persona_id = p.id
-            JOIN equipos e ON a.equipo_id = e.id
-            LEFT JOIN usuarios u ON a.usuario_id = u.id
-            ORDER BY a.fecha_registro DESC
-        `);
+      SELECT 
+        a.*,
+        p.nombre AS persona_nombre,
+        p.numero_identidad,
+        d.nombre AS departamento,
+        e.marca,
+        e.modelo,
+        e.serie,
+        e.procesador,
+        e.ram,
+        u.usuario AS asignado_por
+      FROM asignaciones a
+      JOIN personas p ON a.persona_id = p.id
+      JOIN departamentos d ON p.departamento_id = d.id
+      JOIN equipos e ON a.equipo_id = e.id
+      LEFT JOIN usuarios u ON a.usuario_id = u.id
+      ORDER BY a.fecha_registro DESC
+    `);
     res.json(result.recordset);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -32,21 +33,22 @@ const getAsignacionById = async (req, res) => {
     await poolConnect;
     const { id } = req.params;
     const result = await pool.request().input("id", sql.Int, id).query(`
-                SELECT 
-                    a.*,
-                    p.nombre AS persona_nombre,
-                    p.numero_identidad,
-                    p.departamento,
-                    e.marca,
-                    e.modelo,
-                    e.serie,
-                    e.procesador,
-                    e.ram
-                FROM asignaciones a
-                JOIN personas p ON a.persona_id = p.id
-                JOIN equipos e ON a.equipo_id = e.id
-                WHERE a.id = @id
-            `);
+      SELECT 
+        a.*,
+        p.nombre AS persona_nombre,
+        p.numero_identidad,
+        d.nombre AS departamento,
+        e.marca,
+        e.modelo,
+        e.serie,
+        e.procesador,
+        e.ram
+      FROM asignaciones a
+      JOIN personas p ON a.persona_id = p.id
+      JOIN departamentos d ON p.departamento_id = d.id
+      JOIN equipos e ON a.equipo_id = e.id
+      WHERE a.id = @id
+    `);
 
     if (result.recordset.length === 0) {
       return res.status(404).json({ error: "Asignación no encontrada" });
@@ -64,15 +66,16 @@ const getHistorialByEquipo = async (req, res) => {
     const { equipo_id } = req.params;
     const result = await pool.request().input("equipo_id", sql.Int, equipo_id)
       .query(`
-                SELECT 
-                    a.*,
-                    p.nombre AS persona_nombre,
-                    p.departamento
-                FROM asignaciones a
-                JOIN personas p ON a.persona_id = p.id
-                WHERE a.equipo_id = @equipo_id
-                ORDER BY a.fecha_asignacion DESC
-            `);
+      SELECT 
+        a.*,
+        p.nombre AS persona_nombre,
+        d.nombre AS departamento
+      FROM asignaciones a
+      JOIN personas p ON a.persona_id = p.id
+      JOIN departamentos d ON p.departamento_id = d.id
+      WHERE a.equipo_id = @equipo_id
+      ORDER BY a.fecha_asignacion DESC
+    `);
     res.json(result.recordset);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -85,16 +88,16 @@ const getHistorialByPersona = async (req, res) => {
     const { persona_id } = req.params;
     const result = await pool.request().input("persona_id", sql.Int, persona_id)
       .query(`
-                SELECT 
-                    a.*,
-                    e.marca,
-                    e.modelo,
-                    e.serie
-                FROM asignaciones a
-                JOIN equipos e ON a.equipo_id = e.id
-                WHERE a.persona_id = @persona_id
-                ORDER BY a.fecha_asignacion DESC
-            `);
+      SELECT 
+        a.*,
+        e.marca,
+        e.modelo,
+        e.serie
+      FROM asignaciones a
+      JOIN equipos e ON a.equipo_id = e.id
+      WHERE a.persona_id = @persona_id
+      ORDER BY a.fecha_asignacion DESC
+    `);
     res.json(result.recordset);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -105,7 +108,7 @@ const createAsignacion = async (req, res) => {
   try {
     await poolConnect;
     const { equipo_id, persona_id, fecha_asignacion, notas } = req.body;
-    const usuario_id = req.usuario.id; // viene del token JWT
+    const usuario_id = req.usuario.id;
 
     if (!equipo_id || !persona_id || !fecha_asignacion) {
       return res
@@ -116,13 +119,13 @@ const createAsignacion = async (req, res) => {
     const equipoCheck = await pool
       .request()
       .input("equipo_id", sql.Int, equipo_id)
-      .query(`SELECT estado FROM equipos WHERE id = @equipo_id`);
+      .query(`SELECT estado_id FROM equipos WHERE id = @equipo_id`);
 
     if (equipoCheck.recordset.length === 0) {
       return res.status(404).json({ error: "Equipo no encontrado" });
     }
 
-    if (equipoCheck.recordset[0].estado !== "disponible") {
+    if (equipoCheck.recordset[0].estado_id !== 1) {
       return res
         .status(400)
         .json({ error: "El equipo no está disponible para asignar" });
@@ -135,15 +138,15 @@ const createAsignacion = async (req, res) => {
       .input("fecha_asignacion", sql.Date, fecha_asignacion)
       .input("notas", sql.VarChar(500), notas || null)
       .input("usuario_id", sql.Int, usuario_id).query(`
-                INSERT INTO asignaciones (equipo_id, persona_id, fecha_asignacion, notas, usuario_id)
-                OUTPUT INSERTED.*
-                VALUES (@equipo_id, @persona_id, @fecha_asignacion, @notas, @usuario_id)
-            `);
+        INSERT INTO asignaciones (equipo_id, persona_id, fecha_asignacion, notas, usuario_id)
+        OUTPUT INSERTED.*
+        VALUES (@equipo_id, @persona_id, @fecha_asignacion, @notas, @usuario_id)
+      `);
 
     await pool
       .request()
       .input("equipo_id", sql.Int, equipo_id)
-      .query(`UPDATE equipos SET estado = 'asignado' WHERE id = @equipo_id`);
+      .query(`UPDATE equipos SET estado_id = 2 WHERE id = @equipo_id`);
 
     res.status(201).json(result.recordset[0]);
   } catch (err) {
@@ -182,16 +185,16 @@ const registrarDevolucion = async (req, res) => {
       .request()
       .input("id", sql.Int, id)
       .input("fecha_devolucion", sql.Date, fecha_devolucion).query(`
-                UPDATE asignaciones
-                SET fecha_devolucion = @fecha_devolucion, activa = 0
-                OUTPUT INSERTED.*
-                WHERE id = @id
-            `);
+        UPDATE asignaciones
+        SET fecha_devolucion = @fecha_devolucion, activa = 0
+        OUTPUT INSERTED.*
+        WHERE id = @id
+      `);
 
     await pool
       .request()
       .input("equipo_id", sql.Int, equipo_id)
-      .query(`UPDATE equipos SET estado = 'disponible' WHERE id = @equipo_id`);
+      .query(`UPDATE equipos SET estado_id = 1 WHERE id = @equipo_id`);
 
     res.json(result.recordset[0]);
   } catch (err) {
@@ -210,7 +213,7 @@ const buscar = async (req, res) => {
         a.*,
         p.nombre AS persona_nombre,
         p.numero_identidad,
-        p.departamento,
+        d.nombre AS departamento,
         e.marca,
         e.modelo,
         e.serie,
@@ -219,6 +222,7 @@ const buscar = async (req, res) => {
         u.usuario AS asignado_por
       FROM asignaciones a
       JOIN personas p ON a.persona_id = p.id
+      JOIN departamentos d ON p.departamento_id = d.id
       JOIN equipos e ON a.equipo_id = e.id
       LEFT JOIN usuarios u ON a.usuario_id = u.id
       WHERE 1=1
@@ -232,7 +236,7 @@ const buscar = async (req, res) => {
     }
 
     if (departamento) {
-      query += ` AND p.departamento COLLATE Latin1_General_CI_AI LIKE @departamento`;
+      query += ` AND d.nombre COLLATE Latin1_General_CI_AI LIKE @departamento`;
       request.input("departamento", sql.VarChar(150), `%${departamento}%`);
     }
 
@@ -280,11 +284,11 @@ const subirDocumentoFirmado = async (req, res) => {
       .request()
       .input("id", sql.Int, id)
       .input("documento_firmado", sql.VarChar(300), rutaArchivo).query(`
-                UPDATE asignaciones
-                SET documento_firmado = @documento_firmado
-                OUTPUT INSERTED.*
-                WHERE id = @id
-            `);
+        UPDATE asignaciones
+        SET documento_firmado = @documento_firmado
+        OUTPUT INSERTED.*
+        WHERE id = @id
+      `);
 
     if (result.recordset.length === 0) {
       return res.status(404).json({ error: "Asignación no encontrada" });
