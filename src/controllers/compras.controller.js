@@ -23,8 +23,8 @@ const getCompras = async (req, res) => {
         e.modelo        AS equipo_descripcion,
         est.descripcion AS estado_descripcion
       FROM compras c
-      LEFT JOIN equipos e   ON c.id_equipo = e.id
-      LEFT JOIN estado  est ON c.id_estado = est.id
+      LEFT JOIN equipos e        ON c.id_equipo = e.id
+      LEFT JOIN estado_compras est ON c.id_estado = est.id
       ORDER BY c.id DESC
     `);
     res.json(result.recordset);
@@ -37,25 +37,22 @@ const getCompraById = async (req, res) => {
   try {
     await poolConnect;
     const { id } = req.params;
-    const result = await pool
-      .request()
-      .input("id", sql.Int, id)
-      .query(`
-        SELECT 
-          c.id,
-          c.descripcion,
-          c.documento,
-          c.fecha_compra,
-          c.fecha_entrega,
-          c.id_equipo,
-          c.id_estado,
-          e.modelo        AS equipo_descripcion,
-          est.descripcion AS estado_descripcion
-        FROM compras c
-        LEFT JOIN equipos e   ON c.id_equipo = e.id
-        LEFT JOIN estado  est ON c.id_estado = est.id
-        WHERE c.id = @id
-      `);
+    const result = await pool.request().input("id", sql.Int, id).query(`
+      SELECT 
+        c.id,
+        c.descripcion,
+        c.documento,
+        c.fecha_compra,
+        c.fecha_entrega,
+        c.id_equipo,
+        c.id_estado,
+        e.modelo          AS equipo_descripcion,
+        est.descripcion   AS estado_descripcion
+      FROM compras c
+      LEFT JOIN equipos e          ON c.id_equipo = e.id
+      LEFT JOIN estado_compras est ON c.id_estado = est.id
+      WHERE c.id = @id
+    `);
 
     if (result.recordset.length === 0) {
       return res.status(404).json({ error: "Compra no encontrada" });
@@ -88,13 +85,12 @@ const createCompra = async (req, res) => {
 
     const result = await pool
       .request()
-      .input("descripcion",   sql.NVarChar(sql.MAX), descripcion             || null)
-      .input("documento",     sql.NVarChar(sql.MAX), documentoPath           || null)
-      .input("fecha_compra",  sql.Date,              fecha_compra            || null)
-      .input("fecha_entrega", sql.Date,              fecha_entrega           || null)
-      .input("id_equipo",     sql.Int,               parseIntOrNull(id_equipo))
-      .input("id_estado",     sql.Int,               parseIntOrNull(id_estado))
-      .query(`
+      .input("descripcion", sql.NVarChar(500), descripcion || null)
+      .input("documento", sql.NVarChar(500), documentoPath || null)
+      .input("fecha_compra", sql.Date, fecha_compra || null)
+      .input("fecha_entrega", sql.Date, fecha_entrega || null)
+      .input("id_equipo", sql.Int, parseIntOrNull(id_equipo))
+      .input("id_estado", sql.Int, parseIntOrNull(id_estado)).query(`
         INSERT INTO compras (descripcion, documento, fecha_compra, fecha_entrega, id_equipo, id_estado)
         OUTPUT INSERTED.*
         VALUES (@descripcion, @documento, @fecha_compra, @fecha_entrega, @id_equipo, @id_estado)
@@ -102,9 +98,7 @@ const createCompra = async (req, res) => {
 
     res.status(201).json(result.recordset[0]);
   } catch (err) {
-    if (req.file) {
-      fs.unlink(req.file.path, () => {});
-    }
+    if (req.file) fs.unlink(req.file.path, () => {});
     res.status(500).json({ error: err.message });
   }
 };
@@ -144,14 +138,13 @@ const updateCompra = async (req, res) => {
 
     const result = await pool
       .request()
-      .input("id",            sql.Int,               parseIntOrNull(id))
-      .input("descripcion",   sql.NVarChar(sql.MAX), descripcion             || null)
-      .input("documento",     sql.NVarChar(sql.MAX), documentoPath           || null)
-      .input("fecha_compra",  sql.Date,              fecha_compra            || null)
-      .input("fecha_entrega", sql.Date,              fecha_entrega           || null)
-      .input("id_equipo",     sql.Int,               parseIntOrNull(id_equipo))
-      .input("id_estado",     sql.Int,               parseIntOrNull(id_estado))
-      .query(`
+      .input("id", sql.Int, parseIntOrNull(id))
+      .input("descripcion", sql.NVarChar(500), descripcion || null)
+      .input("documento", sql.NVarChar(500), documentoPath || null)
+      .input("fecha_compra", sql.Date, fecha_compra || null)
+      .input("fecha_entrega", sql.Date, fecha_entrega || null)
+      .input("id_equipo", sql.Int, parseIntOrNull(id_equipo))
+      .input("id_estado", sql.Int, parseIntOrNull(id_estado)).query(`
         UPDATE compras
         SET descripcion   = @descripcion,
             documento     = @documento,
@@ -169,11 +162,25 @@ const updateCompra = async (req, res) => {
 
     res.json(result.recordset[0]);
   } catch (err) {
-    if (req.file) {
-      fs.unlink(req.file.path, () => {});
-    }
+    if (req.file) fs.unlink(req.file.path, () => {});
     res.status(500).json({ error: err.message });
   }
 };
 
-module.exports = { getCompras, getCompraById, createCompra, updateCompra };
+const getEstadosCompras = async (req, res) => {
+  try {
+    await poolConnect;
+    const result = await pool.request().query("SELECT * FROM estado_compras");
+    res.json(result.recordset);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+module.exports = {
+  getCompras,
+  getCompraById,
+  createCompra,
+  updateCompra,
+  getEstadosCompras,
+};

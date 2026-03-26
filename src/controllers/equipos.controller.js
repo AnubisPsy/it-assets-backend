@@ -7,7 +7,7 @@ const getEquipos = async (req, res) => {
       SELECT e.*, t.nombre AS tipo_nombre, s.descripcion AS estado
       FROM equipos e
       LEFT JOIN tipos_equipo t ON e.tipo_id = t.id
-      LEFT JOIN estado s ON e.estado_id = s.id
+      LEFT JOIN estado_equipos s ON e.estado_id = s.id
       ORDER BY e.fecha_registro DESC
     `);
     res.json(result.recordset);
@@ -24,7 +24,7 @@ const getEquipoById = async (req, res) => {
       SELECT e.*, t.nombre AS tipo_nombre, s.descripcion AS estado
       FROM equipos e
       LEFT JOIN tipos_equipo t ON e.tipo_id = t.id
-      LEFT JOIN estado s ON e.estado_id = s.id
+      LEFT JOIN estado_equipos s ON e.estado_id = s.id
       WHERE e.id = @id
     `);
 
@@ -126,7 +126,7 @@ const updateEquipo = async (req, res) => {
 const getEstados = async (req, res) => {
   try {
     await poolConnect;
-    const result = await pool.request().query("SELECT * FROM estado");
+    const result = await pool.request().query("SELECT * FROM estado_equipos");
     res.json(result.recordset);
   } catch (err) {
     res.status(500).json({ error: err.message });

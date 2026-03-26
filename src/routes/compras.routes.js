@@ -6,6 +6,7 @@ const fs = require("fs");
 const {
   getCompras,
   getCompraById,
+  getEstadosCompras,
   createCompra,
   updateCompra,
 } = require("../controllers/compras.controller");
@@ -25,6 +26,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
+router.get("/estados", getEstadosCompras);
 router.get("/", getCompras);
 router.get("/:id", getCompraById);
 router.post("/", upload.single("documento"), createCompra);
