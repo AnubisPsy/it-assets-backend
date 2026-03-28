@@ -9,6 +9,7 @@ const {
   getEstadosCompras,
   createCompra,
   updateCompra,
+  recibirItem,
 } = require("../controllers/compras.controller");
 
 const UPLOADS_DIR = path.join(__dirname, "../../uploads/compras");
@@ -23,7 +24,6 @@ const storage = multer.diskStorage({
     cb(null, unique + path.extname(file.originalname));
   },
 });
-
 const upload = multer({ storage });
 
 router.get("/estados", getEstadosCompras);
@@ -31,5 +31,6 @@ router.get("/", getCompras);
 router.get("/:id", getCompraById);
 router.post("/", upload.single("documento"), createCompra);
 router.put("/:id", upload.single("documento"), updateCompra);
+router.post("/:id/items/:item_id/recibir", recibirItem);
 
 module.exports = router;

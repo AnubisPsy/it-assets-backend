@@ -95,6 +95,32 @@ const updatePersona = async (req, res) => {
   }
 };
 
+const createDepartamento = async (req, res) => {
+  try {
+    await poolConnect;
+    const { nombre } = req.body;
+
+    if (!nombre) {
+      return res.status(400).json({ error: "El nombre es requerido" });
+    }
+
+    const result = await pool
+      .request()
+      .input("nombre", sql.VarChar(100), nombre).query(`
+        INSERT INTO departamentos (nombre)
+        OUTPUT INSERTED.*
+        VALUES (@nombre)
+      `);
+
+    res.status(201).json(result.recordset[0]);
+  } catch (err) {
+    if (err.message.includes("UNIQUE")) {
+      return res.status(400).json({ error: "Este departamento ya existe" });
+    }
+    res.status(500).json({ error: err.message });
+  }
+};
+
 const getDepartamentos = async (req, res) => {
   try {
     await poolConnect;
@@ -112,5 +138,6 @@ module.exports = {
   getPersonaById,
   createPersona,
   updatePersona,
+  createDepartamento,
   getDepartamentos,
 };

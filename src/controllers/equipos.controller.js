@@ -38,6 +38,31 @@ const getEquipoById = async (req, res) => {
   }
 };
 
+const getEquiposConAsignacion = async (req, res) => {
+  try {
+    await poolConnect;
+    const result = await pool.request().query(`
+      SELECT
+        e.*,
+        t.nombre AS tipo_nombre,
+        s.descripcion AS estado,
+        p.nombre AS persona_nombre,
+        d.nombre AS departamento,
+        a.fecha_asignacion
+      FROM equipos e
+      LEFT JOIN tipos_equipo t ON e.tipo_id = t.id
+      LEFT JOIN estado_equipos s ON e.estado_id = s.id
+      LEFT JOIN asignaciones a ON a.equipo_id = e.id AND a.activa = 1
+      LEFT JOIN personas p ON a.persona_id = p.id
+      LEFT JOIN departamentos d ON p.departamento_id = d.id
+      ORDER BY t.nombre, e.marca, e.modelo
+    `);
+    res.json(result.recordset);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 const createEquipo = async (req, res) => {
   try {
     await poolConnect;
@@ -136,6 +161,7 @@ const getEstados = async (req, res) => {
 module.exports = {
   getEquipos,
   getEquipoById,
+  getEquiposConAsignacion,
   createEquipo,
   updateEquipo,
   getEstados,

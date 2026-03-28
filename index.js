@@ -15,6 +15,8 @@ const tiposEquipoRoutes = require("./src/routes/tiposEquipos.routes");
 const servidoresRoutes = require("./src/routes/servidores.routes");
 const comprasRoutes = require("./src/routes/compras.routes");
 const estadoRoutes = require("./src/routes/estado.routes");
+const insumosRoutes  = require("./src/routes/insumos.routes");
+const entregasRoutes = require("./src/routes/entregas.routes");
 const {
   verificarTodos,
   verificarUno,
@@ -55,6 +57,8 @@ app.use("/api/tipos-equipo", tiposEquipoRoutes);
 app.use("/api/servidores", servidoresRoutes);
 app.use("/api/compras", comprasRoutes);
 app.use("/api/estados", estadoRoutes);
+app.use("/api/insumos",   insumosRoutes);
+app.use("/api/entregas",  entregasRoutes);
 
 app.get("/", (req, res) => {
   res.json({ mensaje: "IT Assets API funcionando" });

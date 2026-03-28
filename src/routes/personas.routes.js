@@ -1,15 +1,16 @@
 const express = require("express");
 const router = express.Router();
-const verifyToken = require("../middlewares/auth.middleware");
 const {
   getPersonas,
   getPersonaById,
   createPersona,
   updatePersona,
+  createDepartamento,
   getDepartamentos,
 } = require("../controllers/personas.controller");
 
 router.get("/departamentos", getDepartamentos);
+router.post("/departamentos", createDepartamento);
 router.get("/", getPersonas);
 router.get("/:id", getPersonaById);
 router.post("/", createPersona);

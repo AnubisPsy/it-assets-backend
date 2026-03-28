@@ -6,9 +6,11 @@ const {
   createEquipo,
   updateEquipo,
   getEstados,
+  getEquiposConAsignacion,
 } = require("../controllers/equipos.controller");
 
 router.get("/estados", getEstados);
+router.get("/inventario", getEquiposConAsignacion);
 router.get("/", getEquipos);
 router.get("/:id", getEquipoById);
 router.post("/", createEquipo);
