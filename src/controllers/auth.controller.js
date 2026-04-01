@@ -90,7 +90,7 @@ const getUsuarios = async (req, res) => {
     const result = await pool
       .request()
       .query(
-        "SELECT id, nombre, usuario, activo, fecha_registro, foto_perfil FROM usuarios ORDER BY nombre",
+        "SELECT id, nombre, usuario, activo, fecha_registro, foto_perfil, debe_cambiar_password FROM usuarios ORDER BY nombre",
       );
     res.json(result.recordset);
   } catch (err) {
@@ -102,7 +102,8 @@ const updateUsuario = async (req, res) => {
   try {
     await poolConnect;
     const { id } = req.params;
-    const { nombre, usuario, password, activo } = req.body;
+    const { nombre, usuario, password, activo, debe_cambiar_password } =
+      req.body;
 
     let query;
     const request = pool
@@ -110,24 +111,27 @@ const updateUsuario = async (req, res) => {
       .input("id", sql.Int, id)
       .input("nombre", sql.VarChar(150), nombre)
       .input("usuario", sql.VarChar(50), usuario)
-      .input("activo", sql.Bit, activo);
+      .input("activo", sql.Bit, activo)
+      .input("debe_cambiar_password", sql.Bit, debe_cambiar_password ? 1 : 0);
 
     if (password) {
       const hash = await bcrypt.hash(password, 10);
       request.input("password", sql.VarChar(255), hash);
       query = `
-                UPDATE usuarios
-                SET nombre = @nombre, usuario = @usuario, password = @password, activo = @activo
-                OUTPUT INSERTED.id, INSERTED.nombre, INSERTED.usuario, INSERTED.activo
-                WHERE id = @id
-            `;
+        UPDATE usuarios
+        SET nombre = @nombre, usuario = @usuario, password = @password,
+            activo = @activo, debe_cambiar_password = @debe_cambiar_password
+        OUTPUT INSERTED.id, INSERTED.nombre, INSERTED.usuario, INSERTED.activo, INSERTED.debe_cambiar_password
+        WHERE id = @id
+      `;
     } else {
       query = `
-                UPDATE usuarios
-                SET nombre = @nombre, usuario = @usuario, activo = @activo
-                OUTPUT INSERTED.id, INSERTED.nombre, INSERTED.usuario, INSERTED.activo
-                WHERE id = @id
-            `;
+        UPDATE usuarios
+        SET nombre = @nombre, usuario = @usuario,
+            activo = @activo, debe_cambiar_password = @debe_cambiar_password
+        OUTPUT INSERTED.id, INSERTED.nombre, INSERTED.usuario, INSERTED.activo, INSERTED.debe_cambiar_password
+        WHERE id = @id
+      `;
     }
 
     const result = await request.query(query);
