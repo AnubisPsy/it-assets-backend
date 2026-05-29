@@ -323,7 +323,7 @@ const verificarDocumento = async (req, res) => {
     const rutaCompleta = path.join(__dirname, "../../", ruta);
     const existe = fs.existsSync(rutaCompleta);
 
-    res.json({ existe, url: existe ? `http://localhost:3000/${ruta}` : null });
+    res.json({ existe, url: existe ? `http://192.168.0.233:6060/${ruta}` : null });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -69,18 +69,40 @@ const createEquipo = async (req, res) => {
     const { tipo_id, marca, modelo, serie, procesador, ram, descripcion, mac } =
       req.body;
 
-    if (!tipo_id || !marca || !modelo || !serie) {
-      return res
-        .status(400)
-        .json({ error: "Tipo, marca, modelo y serie son requeridos" });
+    if (!tipo_id) {
+      return res.status(400).json({ error: "El tipo de equipo es requerido" });
+    }
+
+    // Obtener campos del tipo
+    const tipoCheck = await pool
+      .request()
+      .input("tipo_id", sql.Int, tipo_id)
+      .query("SELECT campos FROM tipos_equipo WHERE id = @tipo_id");
+
+    if (tipoCheck.recordset.length === 0) {
+      return res.status(404).json({ error: "Tipo de equipo no encontrado" });
+    }
+
+    const campos = JSON.parse(tipoCheck.recordset[0].campos);
+
+    // Validar solo los campos del tipo
+    const faltantes = campos.filter((campo) => {
+      const valor = req.body[campo];
+      return !valor || valor.toString().trim() === "";
+    });
+
+    if (faltantes.length > 0) {
+      return res.status(400).json({
+        error: `Los siguientes campos son requeridos: ${faltantes.join(", ")}`,
+      });
     }
 
     const result = await pool
       .request()
       .input("tipo_id", sql.Int, tipo_id)
-      .input("marca", sql.VarChar(100), marca)
-      .input("modelo", sql.VarChar(150), modelo)
-      .input("serie", sql.VarChar(100), serie)
+      .input("marca", sql.VarChar(100), marca || null)
+      .input("modelo", sql.VarChar(150), modelo || null)
+      .input("serie", sql.VarChar(100), serie || null)
       .input("procesador", sql.VarChar(100), procesador || null)
       .input("ram", sql.VarChar(50), ram || null)
       .input("descripcion", sql.VarChar(300), descripcion || null)
