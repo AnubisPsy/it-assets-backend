@@ -14,8 +14,9 @@ const SERVIDORES = [
   {
     id: 9,
     nombre: "ASRIEL",
-    linkedServer: process.env.LS_ASRIEL,
-    usePing: true,
+    ip: process.env.LS_ASRIEL,
+    tcpPort: Number(process.env.ASRIEL_PORT) || 80,
+    useTCP: true,
   },
 ];
 
@@ -37,18 +38,10 @@ const BIOMETRICOS = [
 ];
 
 const testLinkedServer = async (servidor) => {
-  if (servidor.usePing) {
+  if (servidor.useTCP) {
     try {
-      const [vivo, tcp] = await Promise.all([
-        ping.promise.probe(servidor.ip, { timeout: 5 }),
-        testTCP(servidor.ip, 1433),
-      ]);
-      const online = vivo.alive || tcp;
-      return {
-        ...servidor,
-        estado: online ? "online" : "offline",
-        ultimo_check: new Date(),
-      };
+      const online = await testTCP(servidor.ip, servidor.tcpPort);
+      return { ...servidor, estado: online ? "online" : "offline", ultimo_check: new Date() };
     } catch {
       return { ...servidor, estado: "offline", ultimo_check: new Date() };
     }
