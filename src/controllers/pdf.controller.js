@@ -36,9 +36,9 @@ const generarConstancia = async (req, res) => {
 
     const datos = result.recordset[0];
     const fecha = new Date(datos.fecha_asignacion);
-    const dia = fecha.getDate();
-    const mes = fecha.toLocaleString("es-HN", { month: "long" }).toUpperCase();
-    const anio = fecha.getFullYear();
+    const dia = fecha.getUTCDate();
+    const mes = fecha.toLocaleString("es-HN", { month: "long", timeZone: "UTC" }).toUpperCase();
+    const anio = fecha.getUTCFullYear();
 
     await pool
       .request()
