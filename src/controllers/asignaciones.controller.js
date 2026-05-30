@@ -1,4 +1,5 @@
 const { pool, poolConnect, sql } = require("../config/database");
+const { getIO } = require("../config/socket");
 
 const getAsignaciones = async (req, res) => {
   try {
@@ -148,6 +149,9 @@ const createAsignacion = async (req, res) => {
       .input("equipo_id", sql.Int, equipo_id)
       .query(`UPDATE equipos SET estado_id = 2 WHERE id = @equipo_id`);
 
+    const io = getIO();
+    if (io) io.emit("asignacion_creada", result.recordset[0]);
+
     res.status(201).json(result.recordset[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -195,6 +199,9 @@ const registrarDevolucion = async (req, res) => {
       .request()
       .input("equipo_id", sql.Int, equipo_id)
       .query(`UPDATE equipos SET estado_id = 1 WHERE id = @equipo_id`);
+
+    const io = getIO();
+    if (io) io.emit("asignacion_devolucion", result.recordset[0]);
 
     res.json(result.recordset[0]);
   } catch (err) {

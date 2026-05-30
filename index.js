@@ -23,11 +23,15 @@ const {
   verificarUno,
 } = require("./src/controllers/servidores.controller");
 
+const socketConfig = require("./src/config/socket");
+
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: { origin: "*", methods: ["GET", "POST"] },
 });
+
+socketConfig.init(io);
 
 const PORT = process.env.PORT || 3000;
 const INTERVALO = 10 * 1000;
